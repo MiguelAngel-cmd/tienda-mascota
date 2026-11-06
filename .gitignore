@@ -1,0 +1,17 @@
+# Maven
+target/
+
+# IDEs
+.idea/
+.vscode/
+*.iml
+.classpath
+.project
+.settings/
+
+# Variables de entorno locales
+.env
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
