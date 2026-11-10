@@ -75,6 +75,6 @@ cd inventory-service && mvn spring-boot:run -Dspring-boot.run.profiles=h2
 Sales-Service y despliegue completo con Docker Compose.
 
 ## Equipo
-| Integrante | Responsabilidad |
-|---|---|
-| (nombre) | (tarea) |
+Miguel Angel Barinas Vanegas
+Andrey Triana Torres
+Daniel Alejandro Rojas
