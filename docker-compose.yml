@@ -1,4 +1,4 @@
-# Avance - Fases 1 y 2: Product-Service y Customer-Service, cada uno con su base de datos.
+# Avance - Fases 1, 2 y 3: Product, Customer e Inventory Service, cada uno con su base de datos.
 # Uso:  docker compose up --build -d
 services:
   postgres-products:
@@ -69,8 +69,46 @@ services:
     networks:
       - tienda-net
 
+  postgres-inventory:
+    image: postgres:16
+    container_name: postgres-inventory
+    environment:
+      POSTGRES_DB: inventory_db
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    ports:
+      - "5435:5432"
+    volumes:
+      - postgres-inventory-data:/var/lib/postgresql/data
+    networks:
+      - tienda-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d inventory_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  inventory-service:
+    build: ./inventory-service
+    container_name: inventory-service
+    environment:
+      DB_URL: jdbc:postgresql://postgres-inventory:5432/inventory_db
+      DB_USER: ${POSTGRES_USER:-postgres}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      PRODUCT_SERVICE_URL: http://product-service:8081   # nombre del servicio = nombre DNS dentro de la red
+    ports:
+      - "8083:8083"
+    depends_on:
+      postgres-inventory:
+        condition: service_healthy
+      product-service:
+        condition: service_started
+    networks:
+      - tienda-net
+
 networks:
   tienda-net:
 volumes:
   postgres-products-data:
   postgres-customers-data:
+  postgres-inventory-data:
