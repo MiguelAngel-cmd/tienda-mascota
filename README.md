@@ -59,11 +59,6 @@ Swagger Product-Service: http://localhost:8081/swagger-ui.html
 
 Swagger Customer-Service: http://localhost:8082/swagger-ui.html
 
-<<<<<<< HEAD
-Pruebas unitarias: `cd product-service && mvn test` y `cd customer-service && mvn test`
-docker run --rm -v "${PWD}/product-service:/app" -w /app maven:3.9-eclipse-temurin-17 mvn test
-docker run --rm -v "${PWD}/customer-service:/app" -w /app maven:3.9-eclipse-temurin-17 mvn test
-=======
 Swagger Inventory-Service: http://localhost:8083/swagger-ui.html
 
 Pruebas unitarias: `mvn test` dentro de cada carpeta de servicio (`product-service`, `customer-service` e `inventory-service`).
@@ -75,15 +70,11 @@ cd product-service   && mvn spring-boot:run -Dspring-boot.run.profiles=h2
 cd customer-service  && mvn spring-boot:run -Dspring-boot.run.profiles=h2
 cd inventory-service && mvn spring-boot:run -Dspring-boot.run.profiles=h2
 ```
->>>>>>> 2de00d6a94c15509ddf0fe6abd48cc9d68b312cf
 
 ## Próximas fases
 Sales-Service y despliegue completo con Docker Compose.
 
-<<<<<<< HEAD
-=======
 ## Equipo
-Miguel Angel Barinas Vanegas
-Andrey Triana Torres
-Daniel Alejandro Rojas
->>>>>>> 2de00d6a94c15509ddf0fe6abd48cc9d68b312cf
+| Integrante | Responsabilidad |
+|---|---|
+| (nombre) | (tarea) |
