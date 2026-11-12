@@ -3,7 +3,7 @@
 Proyecto 6 - Programación II (Ingeniería de Sistemas). Arquitectura de microservicios con Java 17,
 Spring Boot 3 y PostgreSQL.
 
-## Avance actual: Fases 1, 2 y 3
+## Avance actual: Fases 1 y 2
 
 ### Fase 1 - Product-Service (puerto 8081)
 CRUD de productos con validaciones y reglas de negocio:
@@ -34,23 +34,6 @@ CRUD de clientes con validaciones y reglas de negocio:
 | PUT | /customers/{id} | Actualizar cliente |
 | DELETE | /customers/{id} | Eliminar cliente |
 
-### Fase 3 - Inventory-Service (puerto 8083)
-Control de existencias por producto, con historial de movimientos y alertas:
-- Solo se registra inventario de productos que existen en Product-Service
-- No se permite inventario negativo
-- Todos los movimientos quedan registrados: ENTRADA, SALIDA y AJUSTE
-- Alerta cuando el stock actual es menor que el stock mínimo
-
-| Método | Ruta | Descripción |
-|---|---|---|
-| GET | /inventory | Listar el inventario |
-| GET | /inventory/alerts | Productos con stock bajo el mínimo |
-| GET | /inventory/{productId} | Inventario de un producto |
-| POST | /inventory | Registrar inventario de un producto |
-| PUT | /inventory/{id} | Actualizar stock actual y mínimo |
-| POST | /inventory/{productId}/movements | Registrar un movimiento |
-| GET | /inventory/{productId}/movements | Historial de movimientos |
-
 ## Cómo ejecutarlo
 ```bash
 docker compose up --build -d
@@ -72,7 +55,7 @@ cd inventory-service && mvn spring-boot:run -Dspring-boot.run.profiles=h2
 ```
 
 ## Próximas fases
-Sales-Service y despliegue completo con Docker Compose.
+Inventory-Service, Sales-Service y despliegue completo con Docker Compose.
 
 ## Equipo
 Miguel Angel Barinas Vanegas
