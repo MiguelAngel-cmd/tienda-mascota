@@ -43,11 +43,9 @@ Swagger Product-Service: http://localhost:8081/swagger-ui.html
 Swagger Customer-Service: http://localhost:8082/swagger-ui.html
 
 Pruebas unitarias: `cd product-service && mvn test` y `cd customer-service && mvn test`
+docker run --rm -v "${PWD}/product-service:/app" -w /app maven:3.9-eclipse-temurin-17 mvn test
+docker run --rm -v "${PWD}/customer-service:/app" -w /app maven:3.9-eclipse-temurin-17 mvn test
 
 ## Próximas fases
 Inventory-Service, Sales-Service y despliegue completo con Docker Compose.
 
-## Equipo
-| Integrante | Responsabilidad |
-|---|---|
-| (nombre) | (tarea) |
