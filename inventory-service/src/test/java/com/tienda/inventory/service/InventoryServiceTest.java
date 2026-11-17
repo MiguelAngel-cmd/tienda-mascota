@@ -75,6 +75,29 @@ class InventoryServiceTest {
     }
 
     @Test
+    void actualizarStock_registraUnAjusteConElNuevoValor() {
+        when(inventoryRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(inventario(1L, 10L, 10, 3)));
+        when(inventoryRepository.save(any(Inventory.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        InventoryResponse resp = service.actualizar(1L, new InventoryUpdateRequest(2, 5));
+
+        assertEquals(2, resp.stockActual());
+        assertEquals(5, resp.stockMinimo());
+        assertTrue(resp.alertaStockBajo());
+        ArgumentCaptor<InventoryMovement> captor = ArgumentCaptor.forClass(InventoryMovement.class);
+        verify(movementRepository).save(captor.capture());
+        assertEquals(TipoMovimiento.AJUSTE, captor.getValue().getTipoMovimiento());
+    }
+
+    @Test
+    void actualizarStock_deInventarioInexistente_lanzaNotFound() {
+        when(inventoryRepository.findByIdForUpdate(99L)).thenReturn(Optional.empty());
+
+        assertThrows(ResourceNotFoundException.class,
+                () -> service.actualizar(99L, new InventoryUpdateRequest(1, 1)));
+    }
+
+    @Test
     void movimientoDeEntrada_sumaAlStock() {
         when(inventoryRepository.findByProductIdForUpdate(10L)).thenReturn(Optional.of(inventario(1L, 10L, 10, 3)));
         when(inventoryRepository.save(any(Inventory.class))).thenAnswer(inv -> inv.getArgument(0));

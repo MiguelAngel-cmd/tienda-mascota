@@ -83,7 +83,8 @@ public class InventoryService {
     /** PUT: corrige el stock directamente; queda registrado como AJUSTE con el stock resultante. */
     @Transactional
     public InventoryResponse actualizar(Long id, InventoryUpdateRequest req) {
-        Inventory inv = inventoryRepository.findById(id)
+        // Mismo bloqueo que en los movimientos: así un PUT no pisa una venta que se está procesando
+        Inventory inv = inventoryRepository.findByIdForUpdate(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Inventario no encontrado: " + id));
         inv.setStockActual(req.stockActual());
         inv.setStockMinimo(req.stockMinimo());

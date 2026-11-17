@@ -1,0 +1,758 @@
+{
+  "info": {
+    "name": "Tienda de Mascotas - Microservicios",
+    "_postman_id": "6c1b3e0e-4d6e-4b2c-9a51-7f3a2a1e9b10",
+    "description": "Pruebas de integración de la Fase 5 contra los servicios reales (Docker Compose o perfil H2).\nEjecutar en orden con el Collection Runner o con: npx newman run postman/tienda-mascota.postman_collection.json -e postman/local.postman_environment.json",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Caso 1 - Registrar un producto",
+      "item": [
+        {
+          "name": "POST /products → 201 CREATED",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{productUrl}}/products",
+              "host": [
+                "{{productUrl}}"
+              ],
+              "path": [
+                "products"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Concentrado Gato Adulto 3 kg\",\n  \"categoria\": \"ALIMENTOS\",\n  \"marca\": \"Whiskas\",\n  \"descripcion\": \"Prueba de integración\",\n  \"precio\": 62500,\n  \"codigoBarras\": \"{{codigoBarras}}\",\n  \"estado\": \"ACTIVO\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('codigoBarras', 'PM-' + Date.now());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 201 CREATED', () => pm.response.to.have.status(201));",
+                  "pm.test('Devuelve Location', () => pm.expect(pm.response.headers.get('Location')).to.include('/products/'));",
+                  "const p = pm.response.json();",
+                  "pm.test('Producto activo con id', () => { pm.expect(p.id).to.be.a('number'); pm.expect(p.estado).to.eql('ACTIVO'); });",
+                  "pm.collectionVariables.set('productId', p.id);",
+                  "pm.collectionVariables.set('precio', p.precio);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /products código duplicado → 409",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{productUrl}}/products",
+              "host": [
+                "{{productUrl}}"
+              ],
+              "path": [
+                "products"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Otro\",\n  \"categoria\": \"JUGUETES\",\n  \"precio\": 1000,\n  \"codigoBarras\": \"{{codigoBarras}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 409 CONFLICT (regla: código de barras único)', () => pm.response.to.have.status(409));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /products precio negativo → 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{productUrl}}/products",
+              "host": [
+                "{{productUrl}}"
+              ],
+              "path": [
+                "products"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Precio malo\",\n  \"categoria\": \"HIGIENE\",\n  \"precio\": -10,\n  \"codigoBarras\": \"NEG-{{$timestamp}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 400 BAD REQUEST', () => pm.response.to.have.status(400));",
+                  "pm.test('Explica el campo precio', () => pm.expect(pm.response.json().details.join()).to.include('precio'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /products/{id}",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{productUrl}}/products/{{productId}}",
+              "host": [
+                "{{productUrl}}"
+              ],
+              "path": [
+                "products",
+                "{{productId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Es el producto creado', () => pm.expect(pm.response.json().codigoBarras).to.eql(pm.collectionVariables.get('codigoBarras')));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Caso 2 - Agregar existencias (Inventory → Product)",
+      "item": [
+        {
+          "name": "POST /inventory → 201 (producto validado)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{inventoryUrl}}/inventory",
+              "host": [
+                "{{inventoryUrl}}"
+              ],
+              "path": [
+                "inventory"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productId\": \"{{productId}}\",\n  \"stockActual\": 10,\n  \"stockMinimo\": 3\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 201 CREATED (producto validado en Product-Service)', () => pm.response.to.have.status(201));",
+                  "const i = pm.response.json();",
+                  "pm.test('Stock inicial 10', () => pm.expect(i.stockActual).to.eql(10));",
+                  "pm.collectionVariables.set('inventoryId', i.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /inventory/{productId}/movements ENTRADA → stock 15",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{inventoryUrl}}/inventory/{{productId}}/movements",
+              "host": [
+                "{{inventoryUrl}}"
+              ],
+              "path": [
+                "inventory",
+                "{{productId}}",
+                "movements"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tipoMovimiento\": \"ENTRADA\",\n  \"cantidad\": 5\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 201', () => pm.response.to.have.status(201));",
+                  "pm.test('Inventario actualizado a 15', () => pm.expect(pm.response.json().stockActual).to.eql(15));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /inventory producto inexistente → 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{inventoryUrl}}/inventory",
+              "host": [
+                "{{inventoryUrl}}"
+              ],
+              "path": [
+                "inventory"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productId\": 99999999,\n  \"stockActual\": 5,\n  \"stockMinimo\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 400: no se registra inventario de productos inexistentes', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /inventory/{productId}/movements",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{inventoryUrl}}/inventory/{{productId}}/movements",
+              "host": [
+                "{{inventoryUrl}}"
+              ],
+              "path": [
+                "inventory",
+                "{{productId}}",
+                "movements"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Movimientos registrados', () => pm.expect(pm.response.json().length).to.be.at.least(2));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Caso 3 - Registrar una venta (Sales → Customer → Product → Inventory)",
+      "item": [
+        {
+          "name": "POST /customers → 201",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{customerUrl}}/customers",
+              "host": [
+                "{{customerUrl}}"
+              ],
+              "path": [
+                "customers"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Laura\",\n  \"apellido\": \"Prueba\",\n  \"documento\": \"{{documento}}\",\n  \"telefono\": \"3001234567\",\n  \"correo\": \"{{documento}}@correo.com\",\n  \"direccion\": \"Calle 1 # 2-3\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('documento', String(Date.now()));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('customerId', pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /sales → 201 FACTURADA",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{salesUrl}}/sales",
+              "host": [
+                "{{salesUrl}}"
+              ],
+              "path": [
+                "sales"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customerId\": \"{{customerId}}\",\n  \"items\": [\n    {\n      \"productId\": \"{{productId}}\",\n      \"cantidad\": 4\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 201 CREATED (venta registrada)', () => pm.response.to.have.status(201));",
+                  "const v = pm.response.json();",
+                  "pm.test('Estado FACTURADA', () => pm.expect(v.estado).to.eql('FACTURADA'));",
+                  "pm.test('Total = precio x 4', () => pm.expect(Number(v.total)).to.eql(Number(pm.collectionVariables.get('precio')) * 4));",
+                  "pm.collectionVariables.set('saleId', v.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /inventory/{productId} → stock descontado (11)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{inventoryUrl}}/inventory/{{productId}}",
+              "host": [
+                "{{inventoryUrl}}"
+              ],
+              "path": [
+                "inventory",
+                "{{productId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Stock verificado y descontado: 15 - 4 = 11', () => pm.expect(pm.response.json().stockActual).to.eql(11));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /sales cliente inexistente → 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{salesUrl}}/sales",
+              "host": [
+                "{{salesUrl}}"
+              ],
+              "path": [
+                "sales"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customerId\": 99999999,\n  \"items\": [\n    {\n      \"productId\": \"{{productId}}\",\n      \"cantidad\": 1\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 400: no hay ventas sin cliente válido', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Caso 4 - Vender un producto sin existencias",
+      "item": [
+        {
+          "name": "POST /sales cantidad mayor al stock → 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{salesUrl}}/sales",
+              "host": [
+                "{{salesUrl}}"
+              ],
+              "path": [
+                "sales"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customerId\": \"{{customerId}}\",\n  \"items\": [\n    {\n      \"productId\": \"{{productId}}\",\n      \"cantidad\": 999\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 400 BAD REQUEST', () => pm.response.to.have.status(400));",
+                  "pm.test('Mensaje de stock insuficiente', () => pm.expect(pm.response.json().message).to.include('Stock insuficiente'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /inventory/{productId} → stock sin cambios (11)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{inventoryUrl}}/inventory/{{productId}}",
+              "host": [
+                "{{inventoryUrl}}"
+              ],
+              "path": [
+                "inventory",
+                "{{productId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('El intento fallido no descontó nada', () => pm.expect(pm.response.json().stockActual).to.eql(11));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Caso 5 - Consultar historial de ventas",
+      "item": [
+        {
+          "name": "GET /sales → listado",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{salesUrl}}/sales",
+              "host": [
+                "{{salesUrl}}"
+              ],
+              "path": [
+                "sales"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "const ventas = pm.response.json();",
+                  "pm.test('Listado de ventas registradas', () => pm.expect(ventas).to.be.an('array').that.is.not.empty);",
+                  "pm.test('Incluye la venta del Caso 3', () => pm.expect(ventas.map(v => v.id)).to.include(Number(pm.collectionVariables.get('saleId'))));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /sales/{id} → detalle",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{salesUrl}}/sales/{{saleId}}",
+              "host": [
+                "{{salesUrl}}"
+              ],
+              "path": [
+                "sales",
+                "{{saleId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Detalle con subtotal', () => { const v = pm.response.json(); pm.expect(v.detalles).to.have.length(1); pm.expect(v.detalles[0].cantidad).to.eql(4); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Extra - Cancelar venta y devolver stock",
+      "item": [
+        {
+          "name": "PUT /sales/{id} CANCELADA",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{salesUrl}}/sales/{{saleId}}",
+              "host": [
+                "{{salesUrl}}"
+              ],
+              "path": [
+                "sales",
+                "{{saleId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"estado\": \"CANCELADA\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200 y estado CANCELADA', () => { pm.response.to.have.status(200); pm.expect(pm.response.json().estado).to.eql('CANCELADA'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /inventory/{productId} → stock devuelto (15)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{inventoryUrl}}/inventory/{{productId}}",
+              "host": [
+                "{{inventoryUrl}}"
+              ],
+              "path": [
+                "inventory",
+                "{{productId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Las 4 unidades volvieron al inventario', () => pm.expect(pm.response.json().stockActual).to.eql(15));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "codigoBarras",
+      "value": ""
+    },
+    {
+      "key": "productId",
+      "value": ""
+    },
+    {
+      "key": "precio",
+      "value": ""
+    },
+    {
+      "key": "inventoryId",
+      "value": ""
+    },
+    {
+      "key": "documento",
+      "value": ""
+    },
+    {
+      "key": "customerId",
+      "value": ""
+    },
+    {
+      "key": "saleId",
+      "value": ""
+    }
+  ]
+}

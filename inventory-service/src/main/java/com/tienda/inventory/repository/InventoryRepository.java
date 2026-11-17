@@ -20,6 +20,11 @@ public interface InventoryRepository extends JpaRepository<Inventory, Long> {
     @Query("select i from Inventory i where i.productId = :productId")
     Optional<Inventory> findByProductIdForUpdate(@Param("productId") Long productId);
 
+    /** Igual que el anterior, pero buscando por el id del inventario (lo usa el PUT /inventory/{id}). */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select i from Inventory i where i.id = :id")
+    Optional<Inventory> findByIdForUpdate(@Param("id") Long id);
+
     /** Productos cuyo stock está por debajo del mínimo (alertas). */
     @Query("select i from Inventory i where i.stockActual < i.stockMinimo")
     List<Inventory> findBajoMinimo();

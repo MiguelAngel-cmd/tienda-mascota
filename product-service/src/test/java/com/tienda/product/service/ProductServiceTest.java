@@ -13,6 +13,7 @@ import com.tienda.product.model.EstadoProducto;
 import com.tienda.product.model.Product;
 import com.tienda.product.repository.ProductRepository;
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -67,6 +68,26 @@ class ProductServiceTest {
 
         assertThrows(DuplicateResourceException.class, () -> service.crear(request("123")));
         verify(repository, never()).save(any());
+    }
+
+    @Test
+    void consultarProductos_devuelveLaLista() {
+        when(repository.findAll()).thenReturn(List.of(existente(1L, "111"), existente(2L, "222")));
+
+        List<ProductResponse> lista = service.listar();
+
+        assertEquals(2, lista.size());
+        assertEquals("222", lista.get(1).codigoBarras());
+    }
+
+    @Test
+    void consultarProducto_existente_devuelveSusDatos() {
+        when(repository.findById(1L)).thenReturn(Optional.of(existente(1L, "111")));
+
+        ProductResponse resp = service.obtener(1L);
+
+        assertEquals("Pelota", resp.nombre());
+        assertEquals(Categoria.JUGUETES, resp.categoria());
     }
 
     @Test

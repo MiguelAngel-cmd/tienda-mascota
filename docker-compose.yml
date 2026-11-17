@@ -1,9 +1,11 @@
-# Avance - Fases 1 a 4: Product, Customer, Inventory y Sales Service, cada uno con su base de datos.
-# Uso:  docker compose up --build -d
+# Fase 5 - Despliegue completo: 4 microservicios + 4 bases de datos + frontend (nginx).
+# Uso:  docker compose up --build -d      ->  abrir http://localhost:8080
+# Cada servicio espera a que sus dependencias estén "healthy" (actuator/health) antes de arrancar.
 services:
   postgres-products:
     image: postgres:16
     container_name: postgres-products
+    restart: unless-stopped
     environment:
       POSTGRES_DB: products_db
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
@@ -23,6 +25,7 @@ services:
   product-service:
     build: ./product-service
     container_name: product-service
+    restart: unless-stopped
     environment:
       DB_URL: jdbc:postgresql://postgres-products:5432/products_db
       DB_USER: ${POSTGRES_USER:-postgres}
@@ -34,10 +37,17 @@ services:
         condition: service_healthy
     networks:
       - tienda-net
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8081/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      start_period: 40s
+      retries: 10
 
   postgres-customers:
     image: postgres:16
     container_name: postgres-customers
+    restart: unless-stopped
     environment:
       POSTGRES_DB: customers_db
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
@@ -57,6 +67,7 @@ services:
   customer-service:
     build: ./customer-service
     container_name: customer-service
+    restart: unless-stopped
     environment:
       DB_URL: jdbc:postgresql://postgres-customers:5432/customers_db
       DB_USER: ${POSTGRES_USER:-postgres}
@@ -68,10 +79,17 @@ services:
         condition: service_healthy
     networks:
       - tienda-net
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8082/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      start_period: 40s
+      retries: 10
 
   postgres-inventory:
     image: postgres:16
     container_name: postgres-inventory
+    restart: unless-stopped
     environment:
       POSTGRES_DB: inventory_db
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
@@ -91,6 +109,7 @@ services:
   inventory-service:
     build: ./inventory-service
     container_name: inventory-service
+    restart: unless-stopped
     environment:
       DB_URL: jdbc:postgresql://postgres-inventory:5432/inventory_db
       DB_USER: ${POSTGRES_USER:-postgres}
@@ -102,13 +121,20 @@ services:
       postgres-inventory:
         condition: service_healthy
       product-service:
-        condition: service_started
+        condition: service_healthy
     networks:
       - tienda-net
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8083/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      start_period: 40s
+      retries: 10
 
   postgres-sales:
     image: postgres:16
     container_name: postgres-sales
+    restart: unless-stopped
     environment:
       POSTGRES_DB: sales_db
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
@@ -128,6 +154,7 @@ services:
   sales-service:
     build: ./sales-service
     container_name: sales-service
+    restart: unless-stopped
     environment:
       DB_URL: jdbc:postgresql://postgres-sales:5432/sales_db
       DB_USER: ${POSTGRES_USER:-postgres}
@@ -141,11 +168,36 @@ services:
       postgres-sales:
         condition: service_healthy
       customer-service:
-        condition: service_started
+        condition: service_healthy
       product-service:
-        condition: service_started
+        condition: service_healthy
       inventory-service:
-        condition: service_started
+        condition: service_healthy
+    networks:
+      - tienda-net
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8084/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      start_period: 40s
+      retries: 10
+
+  # Interfaz web: nginx sirve el frontend y hace de proxy hacia las APIs (/api/products -> product-service, ...)
+  frontend:
+    build: ./frontend
+    container_name: frontend
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-8080}:80"
+    depends_on:
+      product-service:
+        condition: service_healthy
+      customer-service:
+        condition: service_healthy
+      inventory-service:
+        condition: service_healthy
+      sales-service:
+        condition: service_healthy
     networks:
       - tienda-net
 
